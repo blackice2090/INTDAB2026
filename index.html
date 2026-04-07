@@ -1,0 +1,2554 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المستحقات</title>
+    <!-- مكتبة html2pdf لتصدير الملفات كـ PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #1d4ed8;
+            --primary-hover: #1e40af;
+            --secondary: #10b981;
+            --secondary-hover: #059669;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --sidebar-bg: #1e293b;
+            --sidebar-hover: #334155;
+            --sidebar-active: #3b82f6;
+            --dark: #1f2937;
+            --light: #f1f5f9;
+            --white: #ffffff;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* App Layout */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: var(--white);
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-links {
+            padding: 1rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            overflow-y: auto;
+        }
+
+        .nav-group-title {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.5rem;
+        }
+
+        .nav-link {
+            padding: 0.85rem 1.5rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 500;
+            transition: var(--transition);
+            cursor: pointer;
+            border-right: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background-color: var(--sidebar-hover);
+            color: var(--white);
+        }
+
+        .nav-link.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--white);
+            border-right-color: var(--sidebar-active);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .top-header {
+            background-color: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .page-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .view-section {
+            padding: 2rem;
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--white);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        input,
+        select {
+            padding: 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: var(--transition);
+            background-color: #f8fafc;
+            width: 100%;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background-color: var(--white);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+
+        /* Autocomplete Search */
+        .autocomplete-wrapper {
+            position: relative;
+            margin-bottom: 1.5rem;
+            background: #f0fdf4;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #bbf7d0;
+        }
+
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin-top: 0.25rem;
+        }
+
+        .search-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--light);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .search-item:hover {
+            background-color: var(--light);
+        }
+
+        /* Live Results Panel */
+        .results-panel {
+            background-color: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .result-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .result-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .result-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .result-value.net {
+            color: var(--secondary);
+            font-size: 1.5rem;
+        }
+
+        .result-value.deduction {
+            color: var(--danger);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-success {
+            background-color: var(--secondary);
+            color: var(--white);
+        }
+
+        .btn-success:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: var(--white);
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #cbd5e1;
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--light);
+            border-color: #94a3b8;
+        }
+
+        .btn-info {
+            background-color: #3b82f6;
+            color: var(--white);
+        }
+
+        .btn-info:hover {
+            background-color: #2563eb;
+        }
+
+        /* Modal specific styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 450px;
+            background: var(--white);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            margin: 1rem;
+        }
+
+        /* Controls Area (Tables) */
+        .controls-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+            flex-grow: 1;
+            max-width: 350px;
+        }
+
+        .search-box input {
+            flex-grow: 1;
+            padding: 0.6rem 1rem;
+        }
+
+        /* Table */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            background: var(--white);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--white);
+            text-align: right;
+            font-size: 0.95rem;
+        }
+
+        th,
+        td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        /* Toasts Container */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background-color: #333;
+            color: #fff;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        .toast.success {
+            background-color: var(--secondary);
+        }
+
+        .toast.error {
+            background-color: var(--danger);
+        }
+
+        .toast.info {
+            background-color: var(--primary);
+        }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                overflow: auto;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-between;
+            }
+
+            .sidebar-header {
+                border-bottom: none;
+                border-left: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .nav-links {
+                flex-direction: row;
+                padding: 0;
+                flex-wrap: wrap;
+            }
+
+            .nav-group-title {
+                width: 100%;
+            }
+
+            .nav-link {
+                border-right: none;
+                border-bottom: 3px solid transparent;
+                padding: 1rem;
+            }
+
+            .nav-link.active {
+                border-right-color: transparent;
+                border-bottom-color: var(--sidebar-active);
+            }
+
+            .main-content {
+                overflow: visible;
+            }
+
+            .view-section {
+                padding: 1rem;
+            }
+        }
+
+        /* ------------------------------------------- */
+        /* Print Styles - Global & Single Print Logic  */
+        /* ------------------------------------------- */
+
+        #singlePrintTemplate {
+            display: none;
+        }
+
+        #singlePrintSchTemplate {
+            display: none;
+        }
+
+        .print-only {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                size: landscape;
+                margin: 0;
+            }
+
+            html,
+            body {
+                display: block !important;
+                height: auto !important;
+                width: 100% !important;
+                overflow: visible !important;
+                background-color: #fff;
+                color: #000;
+                margin: 0;
+                padding: 10mm !important;
+                /* تم تقليص الحشوة لإعطاء مساحة أكبر للمحتوى */
+                box-sizing: border-box;
+            }
+
+            .main-content {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            /* إخفاء العناصر غير المرغوب فيها أثناء الطباعة */
+            .sidebar,
+            .top-header,
+            .no-print,
+            .controls-area,
+            #editPersonModal {
+                display: none !important;
+            }
+
+            /* إخفاء جميع الأقسام افتراضياً في الطباعة */
+            .view-section {
+                display: none !important;
+            }
+
+            /* إظهار فقط الجداول المفعلة (الشاملة) */
+            body:not(.printing-single):not(.printing-single-sch) #records.active,
+            body:not(.printing-single):not(.printing-single-sch) #scholarship-records.active {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .card {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .table-responsive {
+                border: none !important;
+                overflow: visible !important;
+                margin: 0 auto;
+                width: 100%;
+            }
+
+            table {
+                width: 100%;
+                border: 1px solid #000;
+                border-collapse: collapse;
+                margin: 0 auto;
+            }
+
+            th,
+            td {
+                border: 1px solid #000;
+                padding: 6px;
+                text-align: center;
+                font-size: 12px;
+            }
+
+            th {
+                background-color: #eee !important;
+                -webkit-print-color-adjust: exact;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Global Prints */
+            body:not(.printing-single):not(.printing-single-sch) .print-only {
+                display: block;
+            }
+
+            body:not(.printing-single):not(.printing-single-sch) #singlePrintTemplate {
+                display: none !important;
+            }
+
+            body:not(.printing-single):not(.printing-single-sch) #singlePrintSchTemplate {
+                display: none !important;
+            }
+
+            body:not(.printing-single):not(.printing-single-sch) #exportContent,
+            body:not(.printing-single):not(.printing-single-sch) #exportSchContent {
+                display: block !important;
+                margin: 0 auto;
+            }
+
+            .print-header-content {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+
+            .print-header-content h2 {
+                margin-bottom: 5px;
+            }
+
+            .print-footer-content {
+                margin-top: 40px;
+                display: flex;
+                justify-content: space-around;
+                text-align: center;
+                font-weight: bold;
+            }
+
+            .print-footer-content div {
+                min-width: 150px;
+            }
+
+            /* Single Print Entitlement */
+            body.printing-single #exportContent,
+            body.printing-single #exportSchContent {
+                display: none !important;
+            }
+
+            body.printing-single #singlePrintTemplate {
+                display: block !important;
+                padding: 0;
+                max-width: 100%;
+                margin: 0 auto;
+                page-break-inside: avoid;
+            }
+
+            /* Single Print Scholarship */
+            body.printing-single-sch #exportContent,
+            body.printing-single-sch #exportSchContent {
+                display: none !important;
+            }
+
+            body.printing-single-sch #singlePrintSchTemplate {
+                display: block !important;
+                padding: 0;
+                max-width: 100%;
+                margin: 0 auto;
+                page-break-inside: avoid;
+            }
+
+            /* Shared Single Print Table Styles (تعديل مقاسات الجدول الفردي ليناسب صفحة واحدة) */
+            .single-print-table {
+                width: 100%;
+                margin: 0 auto;
+                border-collapse: collapse;
+            }
+
+            .single-print-table th,
+            .single-print-table td {
+                font-size: 14px;
+                /* تصغير الخط قليلاً */
+                padding: 8px;
+                /* تقليص الحشوة لتوفير المساحة */
+                text-align: right;
+                border: 1px solid #000;
+            }
+
+            .single-print-table th {
+                width: 35%;
+                background-color: #f1f5f9 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Sidebar Layout -->
+    <aside class="sidebar no-print">
+        <div class="sidebar-header">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
+            </svg>
+            <span>نظام المستحقات</span>
+        </div>
+        <nav class="nav-links">
+            <div class="nav-group-title">الانتدابات</div>
+            <a class="nav-link active" data-view="entry" onclick="switchView('entry', 'إدخال مستحقات وانتداب جديد')">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                    </path>
+                </svg>
+                تسجيل انتداب
+            </a>
+            <a class="nav-link" data-view="records" onclick="switchView('records', 'سجل التقارير والطباعة (انتداب)')">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path
+                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                سجل الانتدابات
+            </a>
+
+            <div class="nav-group-title">الابتعاث</div>
+            <a class="nav-link" data-view="scholarship-entry"
+                onclick="switchView('scholarship-entry', 'إدخال ابتعاث جديد')">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                    </path>
+                </svg>
+                تسجيل ابتعاث
+            </a>
+            <a class="nav-link" data-view="scholarship-records"
+                onclick="switchView('scholarship-records', 'سجل التقارير والطباعة (ابتعاث)')">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
+                </svg>
+                سجل الابتعاث
+            </a>
+
+            <div class="nav-group-title">الإعدادات العامة</div>
+            <a class="nav-link" data-view="personnel"
+                onclick="switchView('personnel', 'إدارة قاعدة الموظفين والنسخ الاحتياطي')">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+                قاعدة الموظفين
+            </a>
+            <a class="nav-link" data-view="registrar" onclick="switchView('registrar', 'بيانات المسجل (مُعد المسير)')">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                بيانات المسجل
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Header Dynamic -->
+        <header class="top-header no-print">
+            <h1 class="page-title" id="pageTitle">إدخال مستحقات وانتداب جديد</h1>
+            <div style="font-size: 0.9rem; color: #64748b;">
+                <span id="currentDateHeader"></span>
+            </div>
+        </header>
+
+        <!-- ============================================== -->
+        <!-- View 1: Data Entry (تسجيل انتداب)              -->
+        <!-- ============================================== -->
+        <section id="entry" class="view-section active no-print">
+
+            <div class="autocomplete-wrapper">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <svg width="18" height="18" fill="none" stroke="#10b981" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <label for="personnelSearch" style="color: #047857;">تعبئة سريعة للمسجلين مسبقاً</label>
+                </div>
+                <div style="position: relative;">
+                    <input type="text" id="personnelSearch" placeholder="ابحث بالاسم أو رقم الهوية..."
+                        oninput="searchPersonnel('entitlement')"
+                        style="width: 100%; border-color: #86efac; background-color: #fff;">
+                    <div id="searchResults" class="search-results-dropdown"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">بيانات الانتداب</h2>
+                </div>
+                <form id="dataForm" onsubmit="handleFormSubmit(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="name">الاسم الرباعي</label>
+                            <input type="text" id="name" required placeholder="أدخل الاسم">
+                        </div>
+                        <div class="form-group">
+                            <label for="identity">رقم الهوية</label>
+                            <input type="text" id="identity" required placeholder="رقم الهوية 10 أرقام" pattern="\d{10}"
+                                title="يجب أن تتكون الهوية من 10 أرقام" oninput="handleIdentityInput(event)">
+                        </div>
+                        <div class="form-group">
+                            <label for="rank">الرتبة</label>
+                            <select id="rank" required onchange="liveCalculate()">
+                                <option value="" disabled selected>اختر الرتبة</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="duration">المدة (بالأيام)</label>
+                            <input type="number" id="duration" required min="1" placeholder="عدد الأيام"
+                                oninput="liveCalculate()">
+                        </div>
+                        <div class="form-group">
+                            <label for="arkab">الأركاب (ريال)</label>
+                            <input type="number" id="arkab" required min="0" step="any" placeholder="قيمة الأركاب"
+                                oninput="liveCalculate()">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="info">معلومات الانتداب (اختياري)</label>
+                            <input type="text" id="info" maxlength="255"
+                                placeholder="اكتب معلومات أو غرض الانتداب هنا لتظهر في الطباعة...">
+                        </div>
+                    </div>
+
+                    <div class="results-panel">
+                        <div class="card-header" style="border: none; padding: 0; margin-bottom: 1rem;">
+                            <h3 class="card-title" style="color: var(--dark);">المعاينة الفورية</h3>
+                        </div>
+                        <div class="results-grid">
+                            <div class="result-item">
+                                <span class="result-label">اليومية (حسب الرتبة)</span>
+                                <span class="result-value" id="live-daily">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">الاستحقاق (اليومية × المدة)</span>
+                                <span class="result-value" id="live-entitlement">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">إجمالي الاستحقاق</span>
+                                <span class="result-value" id="live-total">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">حسم يومية ميدان</span>
+                                <span class="result-value deduction" id="live-deduction">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">صافي الاستحقاق</span>
+                                <span class="result-value net" id="live-net">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                                </path>
+                            </svg>
+                            حفظ واعتماد السجل (انتداب)
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- View 2: Records & Reports (سجل التقارير)       -->
+        <!-- ============================================== -->
+        <section id="records" class="view-section">
+            <div class="card" id="exportContent">
+
+                <div class="controls-area no-print">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="بحث بالاسم أو الهوية داخل السجلات..."
+                            oninput="handleTableSearch()">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="window.print()">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                                </path>
+                            </svg>
+                            طباعة كشوفات الانتداب
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteAllRecords()">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
+                            </svg>
+                            مسح سجلات الانتداب
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Print Header (Global) -->
+                <div class="print-only print-header-content">
+                    <h2>مسير انتداب</h2>
+                    <h3 id="globalInfoSubtitle"
+                        style="margin-bottom: 10px; font-size: 16px; color: #444; font-weight: normal; display: none;">
+                    </h3>
+                    <p id="printDate"></p>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="recordsTable">
+                        <thead>
+                            <tr>
+                                <th>الرقم</th>
+                                <th>الاسم</th>
+                                <th>الهوية</th>
+                                <th>الرتبة</th>
+                                <th>اليومية</th>
+                                <th>المدة</th>
+                                <th>الاستحقاق</th>
+                                <th>الاركاب</th>
+                                <th>إجمالي الاستحقاق</th>
+                                <th>حسم يومية ميدان</th>
+                                <th>صافي الاستحقاق</th>
+                                <th class="no-print">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Data will be populated here -->
+                        </tbody>
+                        <tfoot id="tableFoot" style="font-weight: bold; background-color: #f8fafc;">
+                            <!-- Totals will be populated here -->
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Print Footer (Global) -->
+                <div class="print-only print-footer-content">
+                    <div>
+                        <p>المسجل</p>
+                        <p id="global-reg-name" style="margin-top: 10px; font-weight: normal; font-size: 14px;"></p>
+                        <p id="global-reg-rank" style="font-weight: normal; font-size: 14px;"></p>
+                    </div>
+                    <div>
+                        <p>التوقيع</p>
+                        <p style="margin-top: 30px;">......................</p>
+                    </div>
+                    <div>
+                        <p>الختم</p>
+                        <p style="margin-top: 30px;">......................</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- View 5: Scholarship Entry (تسجيل ابتعاث)       -->
+        <!-- ============================================== -->
+        <section id="scholarship-entry" class="view-section no-print">
+
+            <div class="autocomplete-wrapper">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <svg width="18" height="18" fill="none" stroke="#10b981" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <label for="schPersonnelSearch" style="color: #047857;">تعبئة سريعة للمسجلين مسبقاً</label>
+                </div>
+                <div style="position: relative;">
+                    <input type="text" id="schPersonnelSearch" placeholder="ابحث بالاسم أو رقم الهوية..."
+                        oninput="searchPersonnel('scholarship')"
+                        style="width: 100%; border-color: #86efac; background-color: #fff;">
+                    <div id="schSearchResults" class="search-results-dropdown"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">بيانات الابتعاث</h2>
+                </div>
+                <form id="schDataForm" onsubmit="handleSchFormSubmit(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="sch-name">الاسم الرباعي</label>
+                            <input type="text" id="sch-name" required placeholder="أدخل الاسم">
+                        </div>
+                        <div class="form-group">
+                            <label for="sch-identity">رقم الهوية</label>
+                            <input type="text" id="sch-identity" required placeholder="رقم الهوية 10 أرقام"
+                                pattern="\d{10}" title="يجب أن تتكون الهوية من 10 أرقام"
+                                oninput="handleIdentityInput(event)">
+                        </div>
+                        <div class="form-group">
+                            <label for="sch-rank">الرتبة</label>
+                            <select id="sch-rank" required>
+                                <option value="" disabled selected>اختر الرتبة</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="sch-basic-salary">الراتب الأساسي (ريال)</label>
+                            <input type="number" id="sch-basic-salary" required min="0" step="any"
+                                placeholder="الراتب الأساسي" oninput="liveCalculateSch()">
+                        </div>
+                        <!-- تعديل حقل المدة لإضافة مسافة السفر -->
+                        <div class="form-group">
+                            <label for="sch-duration">المدة الفعلية (بالأيام)</label>
+                            <input type="number" id="sch-duration" required min="1" placeholder="أدخل الأيام الفعلية"
+                                oninput="liveCalculateSch()">
+                            <small id="sch-duration-note"
+                                style="color: #64748b; font-size: 0.85rem; margin-top: 0.25rem;">(سيتم إضافة 7 أيام
+                                تلقائياً مسافة سفر)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="sch-arkab">الأركاب (ريال)</label>
+                            <input type="number" id="sch-arkab" required min="0" step="any" placeholder="قيمة الأركاب"
+                                oninput="liveCalculateSch()">
+                        </div>
+                        <div class="form-group">
+                            <label for="sch-remote-deduction"> مناطق نائية (ريال)</label>
+                            <input type="number" id="sch-remote-deduction" min="0" step="any" placeholder="0" value="0"
+                                oninput="liveCalculateSch()">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="sch-info">معلومات الابتعاث (اختياري)</label>
+                            <input type="text" id="sch-info" maxlength="255"
+                                placeholder="اكتب معلومات أو غرض الابتعاث هنا لتظهر في الطباعة...">
+                        </div>
+                    </div>
+
+                    <div class="results-panel">
+                        <div class="card-header" style="border: none; padding: 0; margin-bottom: 1rem;">
+                            <h3 class="card-title" style="color: var(--dark);">المعاينة الفورية للابتعاث</h3>
+                        </div>
+                        <div class="results-grid">
+                            <div class="result-item">
+                                <span class="result-label">الاستحقاق الأساسي</span>
+                                <span class="result-value" id="sch-live-entitlement">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">إجمالي الاستحقاق (مع الأركاب)</span>
+                                <span class="result-value" id="sch-live-total">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">حسم إعاشة إضافية</span>
+                                <span class="result-value deduction" id="sch-live-food-deduction">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">حسم يومية ميدان</span>
+                                <span class="result-value deduction" id="sch-live-field-deduction">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">حسم مناطق نائية</span>
+                                <span class="result-value deduction" id="sch-live-remote-deduction">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">إجمالي الحسميات</span>
+                                <span class="result-value deduction" id="sch-live-total-deductions">0</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">صافي الاستحقاق</span>
+                                <span class="result-value net" id="sch-live-net">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                                </path>
+                            </svg>
+                            حفظ واعتماد السجل (ابتعاث)
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- View 6: Scholarship Records (سجل الابتعاث)     -->
+        <!-- ============================================== -->
+        <section id="scholarship-records" class="view-section">
+            <div class="card" id="exportSchContent">
+
+                <div class="controls-area no-print">
+                    <div class="search-box">
+                        <input type="text" id="schSearchInput" placeholder="بحث بالاسم أو الهوية داخل الابتعاث..."
+                            oninput="handleSchTableSearch()">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="window.print()">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                                </path>
+                            </svg>
+                            طباعة كشوفات الابتعاث
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteAllSchRecords()">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
+                            </svg>
+                            مسح سجلات الابتعاث
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Print Header (Global Scholarship) -->
+                <div class="print-only print-header-content">
+                    <h2>مسير ابتعاث</h2>
+                    <h3 id="schGlobalInfoSubtitle"
+                        style="margin-bottom: 10px; font-size: 16px; color: #444; font-weight: normal; display: none;">
+                    </h3>
+                    <p id="schPrintDate"></p>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="schRecordsTable">
+                        <thead>
+                            <tr>
+                                <th>الرقم</th>
+                                <th>الاسم</th>
+                                <th>الهوية</th>
+                                <th>الرتبة</th>
+                                <th>المدة</th>
+                                <th>الاستحقاق</th>
+                                <th>الاركاب</th>
+                                <th>إجمالي الاستحقاق</th>
+                                <th>حسم إعاشة</th>
+                                <th>حسم ميدان</th>
+                                <th>حسم نائية</th>
+                                <th>إجمالي الحسميات</th>
+                                <th>صافي الاستحقاق</th>
+                                <th class="no-print">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schTableBody">
+                            <!-- Data will be populated here -->
+                        </tbody>
+                        <tfoot id="schTableFoot" style="font-weight: bold; background-color: #f8fafc;">
+                            <!-- Totals will be populated here -->
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Print Footer (Global Scholarship) -->
+                <div class="print-only print-footer-content">
+                    <div>
+                        <p>المسجل</p>
+                        <p id="sch-global-reg-name" style="margin-top: 10px; font-weight: normal; font-size: 14px;"></p>
+                        <p id="sch-global-reg-rank" style="font-weight: normal; font-size: 14px;"></p>
+                    </div>
+                    <div>
+                        <p>التوقيع</p>
+                        <p style="margin-top: 30px;">......................</p>
+                    </div>
+                    <div>
+                        <p>الختم</p>
+                        <p style="margin-top: 30px;">......................</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- Hidden Template for Individual Record Printing -->
+        <!-- ============================================== -->
+        <div id="singlePrintTemplate">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="margin-bottom: 5px; font-size: 22px;">بيان استحقاق انتداب فردي</h1>
+                <h3 id="sp-info-subtitle"
+                    style="margin-bottom: 5px; font-size: 16px; color: #333; font-weight: normal; display: none;"></h3>
+                <p id="sp-date" style="color: #555; margin: 0; font-size: 14px;"></p>
+                <hr style="margin-top: 10px; border-top: 2px solid #000;">
+            </div>
+
+            <table class="single-print-table">
+                <tr>
+                    <th>الاسم الرباعي</th>
+                    <td id="sp-name"></td>
+                </tr>
+                <tr>
+                    <th>رقم الهوية</th>
+                    <td id="sp-identity"></td>
+                </tr>
+                <tr>
+                    <th>الرتبة</th>
+                    <td id="sp-rank"></td>
+                </tr>
+                <tr>
+                    <th>المدة (بالأيام)</th>
+                    <td id="sp-duration"></td>
+                </tr>
+                <tr>
+                    <th>يومية الانتداب</th>
+                    <td id="sp-daily"></td>
+                </tr>
+                <tr>
+                    <th>مبلغ الاستحقاق (الأساسي)</th>
+                    <td id="sp-entitlement"></td>
+                </tr>
+                <tr>
+                    <th>مبلغ الأركاب</th>
+                    <td id="sp-arkab"></td>
+                </tr>
+                <tr>
+                    <th>إجمالي الاستحقاق</th>
+                    <td id="sp-total"></td>
+                </tr>
+                <tr>
+                    <th>حسم يومية ميدان</th>
+                    <td id="sp-deduction" style="color: #d32f2f;"></td>
+                </tr>
+                <tr>
+                    <th style="font-size: 16px;">صافي الاستحقاق النهائي</th>
+                    <td id="sp-net" style="font-size: 16px; font-weight: bold;"></td>
+                </tr>
+            </table>
+
+            <div
+                style="margin-top: 30px; display: flex; justify-content: space-around; text-align: center; font-weight: bold; font-size: 14px;">
+                <div>
+                    <p>المسجل</p>
+                    <p id="single-reg-name" style="margin-top: 10px; font-weight: normal; font-size: 14px;"></p>
+                    <p id="single-reg-rank" style="font-weight: normal; font-size: 14px;"></p>
+                </div>
+                <div>
+                    <p>التوقيع</p>
+                    <p style="margin-top: 20px;">................................</p>
+                </div>
+                <div>
+                    <p>الختم الرسمي</p>
+                    <p style="margin-top: 20px;">................................</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- Hidden Template for Individual SCHOLARSHIP Print -->
+        <!-- ============================================== -->
+        <div id="singlePrintSchTemplate">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="margin-bottom: 5px; font-size: 22px;">بيان استحقاق ابتعاث فردي</h1>
+                <h3 id="sch-sp-info-subtitle"
+                    style="margin-bottom: 5px; font-size: 16px; color: #333; font-weight: normal; display: none;"></h3>
+                <p id="sch-sp-date" style="color: #555; margin: 0; font-size: 14px;"></p>
+                <hr style="margin-top: 10px; border-top: 2px solid #000;">
+            </div>
+
+            <table class="single-print-table">
+                <tr>
+                    <th>الاسم الرباعي</th>
+                    <td id="sch-sp-name"></td>
+                </tr>
+                <tr>
+                    <th>رقم الهوية</th>
+                    <td id="sch-sp-identity"></td>
+                </tr>
+                <tr>
+                    <th>الرتبة</th>
+                    <td id="sch-sp-rank"></td>
+                </tr>
+                <tr>
+                    <th>الراتب الأساسي</th>
+                    <td id="sch-sp-basic"></td>
+                </tr>
+                <tr>
+                    <th>المدة (بالأيام)</th>
+                    <td id="sch-sp-duration"></td>
+                </tr>
+                <tr>
+                    <th>الاستحقاق الأساسي</th>
+                    <td id="sch-sp-entitlement"></td>
+                </tr>
+                <tr>
+                    <th>مبلغ الأركاب</th>
+                    <td id="sch-sp-arkab"></td>
+                </tr>
+                <tr>
+                    <th>إجمالي الاستحقاق</th>
+                    <td id="sch-sp-total"></td>
+                </tr>
+                <tr>
+                    <th>حسم إعاشة إضافية</th>
+                    <td id="sch-sp-food-ded"></td>
+                </tr>
+                <tr>
+                    <th>حسم يومية ميدان</th>
+                    <td id="sch-sp-field-ded"></td>
+                </tr>
+                <tr>
+                    <th>حسم مناطق نائية</th>
+                    <td id="sch-sp-remote-ded"></td>
+                </tr>
+                <tr>
+                    <th>إجمالي الحسميات</th>
+                    <td id="sch-sp-total-ded" style="color: #d32f2f;"></td>
+                </tr>
+                <tr>
+                    <th style="font-size: 16px;">صافي الاستحقاق النهائي</th>
+                    <td id="sch-sp-net" style="font-size: 16px; font-weight: bold;"></td>
+                </tr>
+            </table>
+
+            <div
+                style="margin-top: 30px; display: flex; justify-content: space-around; text-align: center; font-weight: bold; font-size: 14px;">
+                <div>
+                    <p>المسجل</p>
+                    <p id="sch-single-reg-name" style="margin-top: 10px; font-weight: normal; font-size: 14px;"></p>
+                    <p id="sch-single-reg-rank" style="font-weight: normal; font-size: 14px;"></p>
+                </div>
+                <div>
+                    <p>التوقيع</p>
+                    <p style="margin-top: 20px;">................................</p>
+                </div>
+                <div>
+                    <p>الختم الرسمي</p>
+                    <p style="margin-top: 20px;">................................</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- View 4: Registrar Data (إعدادات المسجل)        -->
+        <!-- ============================================== -->
+        <section id="registrar" class="view-section no-print">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <div class="card-header">
+                    <h2 class="card-title">تحديد بيانات المسجل (مُعد المسير)</h2>
+                </div>
+                <p style="margin-bottom: 1.5rem; color: #64748b; font-size: 0.95rem;">
+                    سيتم حفظ هذه البيانات كمرجع أساسي، وستظهر تلقائياً في تذييل كافة المسيرات وتقارير الانتداب/الابتعاث
+                    الفردية عند الطباعة.
+                </p>
+
+                <form id="registrarForm" onsubmit="saveRegistrarData(event)">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="regNameInput">اسم المسجل الرباعي</label>
+                        <input type="text" id="regNameInput" required placeholder="أدخل اسم المسجل">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label for="regRankSelect">رتبة المسجل</label>
+                        <select id="regRankSelect" required>
+                            <option value="" disabled selected>اختر الرتبة</option>
+                        </select>
+                    </div>
+
+                    <div style="text-align: left;">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            حفظ واعتماد بيانات المسجل
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- View 3: Personnel DB (إدارة الموظفين والـ CSV)   -->
+        <!-- ============================================== -->
+        <section id="personnel" class="view-section no-print">
+
+            <div
+                style="background-color: #fffbeb; border: 1px solid #fcd34d; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; color: #b45309; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    style="flex-shrink: 0;">
+                    <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span style="font-size: 0.95rem; line-height: 1.5;"><strong>ملاحظة هامة:</strong> جميع البيانات تُحفظ
+                    محلياً في متصفحك (Local Storage) بحسب بناء النظام، لذا يُنصح بأخذ <strong>نسخ احتياطية</strong>
+                    للمقيدة في حال تنظيف سجل المتصفح لتجنب فقدانها.</span>
+            </div>
+
+            <!-- إضافة شريط البحث بالإكمال التلقائي هنا -->
+            <div class="autocomplete-wrapper" style="background: #f8fafc; border-color: #cbd5e1;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <svg width="18" height="18" fill="none" stroke="var(--primary)" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <label for="dbPersonnelSearch" style="color: var(--dark);">البحث السريع (للتعديل الفوري)</label>
+                </div>
+                <div style="position: relative;">
+                    <input type="text" id="dbPersonnelSearch"
+                        placeholder="ابحث بالاسم أو رقم الهوية لتعديل بيانات الموظف مباشرة..."
+                        oninput="searchPersonnel('database')"
+                        style="width: 100%; border-color: #cbd5e1; background-color: #fff;">
+                    <div id="dbSearchResults" class="search-results-dropdown"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">قاعدة بيانات الموظفين الأساسية</h2>
+                    <div>
+                        <input type="file" id="csvFileInput" accept=".csv" style="display: none;"
+                            onchange="handleCSVUpload(event)">
+                        <button type="button" class="btn btn-outline"
+                            onclick="document.getElementById('csvFileInput').click()">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                            استيراد من إكسيل (CSV)
+                        </button>
+                    </div>
+                </div>
+
+                <p style="margin-bottom: 1rem; color: #64748b; font-size: 0.95rem;">
+                    هذه القاعدة تُستخدم لميزة الإكمال التلقائي. يتم إضافة الأسماء هنا تلقائياً عند حفظ أي حركة جديدة، أو
+                    عبر استيراد ملف.
+                </p>
+
+                <div class="table-responsive">
+                    <table id="personnelTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>الاسم الرباعي</th>
+                                <th>رقم الهوية</th>
+                                <th>الرتبة</th>
+                                <th style="width: 100px; text-align: center;">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="personnelTableBody">
+                            <!-- Personnel DB data will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal for Editing Person -->
+    <div id="editPersonModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 1.5rem; color: var(--primary);">تعديل بيانات الموظف</h3>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label>الاسم الرباعي</label>
+                <input type="text" id="editPersonName" required>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label>رقم الهوية</label>
+                <input type="text" id="editPersonIdentity" required oninput="handleIdentityInput(event)">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label>الرتبة</label>
+                <select id="editPersonRank" required></select>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="closeEditModal()">إلغاء</button>
+                <button class="btn btn-primary" onclick="savePersonEdit()">حفظ التعديلات</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. إعدادات النظام والرتب
+        // ==========================================
+        const rankAllowances = {
+            'جندي': 166.67,
+            'جندي أول': 166.67,
+            'عريف': 166.67,
+            'وكيل رقيب': 216.67,
+            'رقيب': 216.67,
+            'رقيب أول': 343.33,
+            'رئيس رقباء': 423.33,
+            'ملازم': 423.33,
+            'ملازم أول': 623.33,
+            'نقيب': 623.33,
+            'رائد': 630,
+            'مقدم': 730,
+            'عقيد': 730,
+            'عميد': 840,
+            'لواء': 850
+        };
+
+        // ==========================================
+        // 2. حالة التطبيق وقواعد البيانات (State & DB)
+        // ==========================================
+        let records = [];             // الانتدابات
+        let scholarshipRecords = [];  // الابتعاث
+        let personnelDB = [];
+        let editingIdentity = null;
+        let registrarData = { name: '', rank: '' };
+
+        function initData() {
+            try {
+                const storedRecords = localStorage.getItem('entitlementRecords');
+                if (storedRecords) {
+                    records = JSON.parse(storedRecords);
+                    if (!Array.isArray(records)) records = [];
+                }
+            } catch (e) { records = []; }
+
+            try {
+                const storedSchRecords = localStorage.getItem('scholarshipRecords');
+                if (storedSchRecords) {
+                    scholarshipRecords = JSON.parse(storedSchRecords);
+                    if (!Array.isArray(scholarshipRecords)) scholarshipRecords = [];
+                }
+            } catch (e) { scholarshipRecords = []; }
+
+            try {
+                const storedPersonnel = localStorage.getItem('personnelDB');
+                if (storedPersonnel) {
+                    personnelDB = JSON.parse(storedPersonnel);
+                    if (!Array.isArray(personnelDB)) personnelDB = [];
+                }
+            } catch (e) { personnelDB = []; }
+
+            try {
+                const storedRegistrar = localStorage.getItem('registrarData');
+                if (storedRegistrar) {
+                    registrarData = JSON.parse(storedRegistrar);
+                }
+            } catch (e) { registrarData = { name: '', rank: '' }; }
+        }
+
+        async function fetchServerData() {
+            let dataUpdated = false;
+
+            if (personnelDB.length === 0) {
+                try {
+                    const res = await fetch('deta_names.csv');
+                    if (res.ok) {
+                        const text = await res.text();
+                        processCSVData(text, true);
+                        dataUpdated = true;
+                    }
+                } catch (e) {
+                    console.log("No server-side deta_names.csv found.");
+                }
+            }
+
+            if (records.length === 0 && scholarshipRecords.length === 0) {
+                try {
+                    const res = await fetch('backup.json');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.records && Array.isArray(data.records)) {
+                            records = data.records;
+                            localStorage.setItem('entitlementRecords', JSON.stringify(records));
+                            dataUpdated = true;
+                        }
+                        if (data.scholarshipRecords && Array.isArray(data.scholarshipRecords)) {
+                            scholarshipRecords = data.scholarshipRecords;
+                            localStorage.setItem('scholarshipRecords', JSON.stringify(scholarshipRecords));
+                            dataUpdated = true;
+                        }
+                        if (data.personnelDB && personnelDB.length === 0) {
+                            personnelDB = data.personnelDB;
+                            localStorage.setItem('personnelDB', JSON.stringify(personnelDB));
+                            dataUpdated = true;
+                        }
+                    }
+                } catch (e) {
+                    console.log("No server-side backup.json found.");
+                }
+            }
+
+            if (dataUpdated) {
+                renderTable();
+                renderSchTable();
+                renderPersonnelTable();
+            }
+        }
+
+        // ==========================================
+        // 3. التهيئة والتنقل (Init & Routing)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initData();
+
+            populateRanks();
+            populateSchRanks();
+            populateEditRanks();
+            populateRegistrarRanks();
+
+            const todayStr = new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('currentDateHeader').innerText = todayStr;
+            document.getElementById('printDate').innerText = 'تاريخ الطباعة: ' + new Date().toLocaleDateString('ar-SA');
+            document.getElementById('sp-date').innerText = 'تاريخ الإصدار: ' + new Date().toLocaleDateString('ar-SA');
+            document.getElementById('schPrintDate').innerText = 'تاريخ الطباعة: ' + new Date().toLocaleDateString('ar-SA');
+            document.getElementById('sch-sp-date').innerText = 'تاريخ الإصدار: ' + new Date().toLocaleDateString('ar-SA');
+
+            renderTable();
+            renderSchTable();
+            renderPersonnelTable();
+            updateRegistrarUI();
+
+            fetchServerData();
+        });
+
+        function switchView(viewId, title) {
+            document.querySelectorAll('.view-section').forEach(sec => {
+                sec.style.display = 'none';
+                sec.classList.remove('active');
+            });
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            const targetSection = document.getElementById(viewId);
+            if (targetSection) {
+                targetSection.style.display = 'block';
+                setTimeout(() => targetSection.classList.add('active'), 10);
+            }
+
+            document.querySelector(`[data-view="${viewId}"]`).classList.add('active');
+            document.getElementById('pageTitle').innerText = title;
+
+            if (viewId === 'records') renderTable();
+            if (viewId === 'scholarship-records') renderSchTable();
+            if (viewId === 'personnel') renderPersonnelTable();
+
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('schSearchResults').style.display = 'none';
+        }
+
+        // ==========================================
+        // 4. نظام النسخ الاحتياطي (Backup & Restore)
+        // ==========================================
+        function exportBackup() {
+            const data = {
+                records: records,
+                scholarshipRecords: scholarshipRecords,
+                personnelDB: personnelDB,
+                registrarData: registrarData
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "backup_نظام_المستحقات_" + new Date().toLocaleDateString('ar-SA') + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast('تم تحميل النسخة الاحتياطية بنجاح', 'success');
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.records && data.personnelDB) {
+                        records = data.records;
+                        personnelDB = data.personnelDB;
+                        scholarshipRecords = data.scholarshipRecords || [];
+
+                        localStorage.setItem('entitlementRecords', JSON.stringify(records));
+                        localStorage.setItem('scholarshipRecords', JSON.stringify(scholarshipRecords));
+                        localStorage.setItem('personnelDB', JSON.stringify(personnelDB));
+
+                        if (data.registrarData) {
+                            registrarData = data.registrarData;
+                            localStorage.setItem('registrarData', JSON.stringify(registrarData));
+                            updateRegistrarUI();
+                        }
+
+                        renderTable();
+                        renderSchTable();
+                        renderPersonnelTable();
+                        showToast('تم استعادة البيانات بنجاح!', 'success');
+                    } else {
+                        showToast('ملف النسخة الاحتياطية غير صالح', 'error');
+                    }
+                } catch (err) {
+                    showToast('حدث خطأ أثناء قراءة الملف', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ==========================================
+        // 5. الأدوات المساعدة المشتركة (Utilities)
+        // ==========================================
+        function convertArabicToEnglishNumbers(str) {
+            if (!str) return '';
+            const arabicNumbers = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
+            let converted = str.toString();
+            for (let i = 0; i < 10; i++) {
+                converted = converted.replace(arabicNumbers[i], i);
+            }
+            return converted;
+        }
+
+        function handleIdentityInput(event) {
+            event.target.value = convertArabicToEnglishNumbers(event.target.value);
+        }
+
+        function populateRanks() {
+            const rankSelect = document.getElementById('rank');
+            for (const rank in rankAllowances) {
+                const option = document.createElement('option');
+                option.value = rank; option.textContent = rank;
+                rankSelect.appendChild(option);
+            }
+        }
+        function populateSchRanks() {
+            const rankSelect = document.getElementById('sch-rank');
+            for (const rank in rankAllowances) {
+                const option = document.createElement('option');
+                option.value = rank; option.textContent = rank;
+                rankSelect.appendChild(option);
+            }
+        }
+        function populateEditRanks() {
+            const rankSelect = document.getElementById('editPersonRank');
+            rankSelect.innerHTML = '<option value="" disabled selected>اختر الرتبة</option>';
+            for (const rank in rankAllowances) {
+                const option = document.createElement('option');
+                option.value = rank; option.textContent = rank;
+                rankSelect.appendChild(option);
+            }
+        }
+        function populateRegistrarRanks() {
+            const rankSelect = document.getElementById('regRankSelect');
+            if (!rankSelect) return;
+            rankSelect.innerHTML = '<option value="" disabled selected>اختر الرتبة</option>';
+            for (const rank in rankAllowances) {
+                const option = document.createElement('option');
+                option.value = rank; option.textContent = rank;
+                rankSelect.appendChild(option);
+            }
+        }
+
+        // ==========================================
+        // 6. بيانات المسجل (Registrar Logic)
+        // ==========================================
+        function saveRegistrarData(e) {
+            e.preventDefault();
+            registrarData.name = document.getElementById('regNameInput').value.trim();
+            registrarData.rank = document.getElementById('regRankSelect').value;
+
+            localStorage.setItem('registrarData', JSON.stringify(registrarData));
+            updateRegistrarUI();
+            showToast('تم حفظ واعتماد بيانات المسجل بنجاح', 'success');
+        }
+
+        function updateRegistrarUI() {
+            const nameInput = document.getElementById('regNameInput');
+            const rankSelect = document.getElementById('regRankSelect');
+            if (nameInput) nameInput.value = registrarData.name || '';
+            if (rankSelect) rankSelect.value = registrarData.rank || '';
+
+            // الانتداب
+            document.getElementById('global-reg-name').innerText = registrarData.name ? `الاسم / ${registrarData.name}` : '';
+            document.getElementById('global-reg-rank').innerText = registrarData.rank ? `الرتبة / ${registrarData.rank}` : '';
+            document.getElementById('single-reg-name').innerText = registrarData.name ? `الاسم / ${registrarData.name}` : '';
+            document.getElementById('single-reg-rank').innerText = registrarData.rank ? `الرتبة / ${registrarData.rank}` : '';
+
+            // الابتعاث
+            const schGlobalName = document.getElementById('sch-global-reg-name');
+            const schGlobalRank = document.getElementById('sch-global-reg-rank');
+            const schSingleName = document.getElementById('sch-single-reg-name');
+            const schSingleRank = document.getElementById('sch-single-reg-rank');
+
+            if (schGlobalName) schGlobalName.innerText = registrarData.name ? `الاسم / ${registrarData.name}` : '';
+            if (schGlobalRank) schGlobalRank.innerText = registrarData.rank ? `الرتبة / ${registrarData.rank}` : '';
+            if (schSingleName) schSingleName.innerText = registrarData.name ? `الاسم / ${registrarData.name}` : '';
+            if (schSingleRank) schSingleRank.innerText = registrarData.rank ? `الرتبة / ${registrarData.rank}` : '';
+        }
+
+        // ==========================================
+        // 7. محركات الحسابات (Calculation Logic)
+        // ==========================================
+
+        // --- حسابات الانتداب ---
+        function calculateDues(rank, duration, arkab) {
+            const daily = rankAllowances[rank] || 0;
+            const entitlement = Number((daily * duration).toFixed(2));
+            const totalEntitlement = Number((arkab + entitlement).toFixed(2));
+            const fieldDeduction = 15 * duration;
+            const net = Number((totalEntitlement - fieldDeduction).toFixed(2));
+            return { daily, entitlement, totalEntitlement, fieldDeduction, net };
+        }
+
+        function liveCalculate() {
+            const rank = document.getElementById('rank').value;
+            const duration = parseFloat(document.getElementById('duration').value) || 0;
+            const arkab = parseFloat(document.getElementById('arkab').value) || 0;
+
+            if (rank && duration >= 0) {
+                const result = calculateDues(rank, duration, arkab);
+                document.getElementById('live-daily').textContent = result.daily;
+                document.getElementById('live-entitlement').textContent = result.entitlement;
+                document.getElementById('live-total').textContent = result.totalEntitlement;
+                document.getElementById('live-deduction').textContent = result.fieldDeduction;
+                document.getElementById('live-net').textContent = result.net;
+            } else {
+                ['live-daily', 'live-entitlement', 'live-total', 'live-deduction', 'live-net'].forEach(id => {
+                    document.getElementById(id).textContent = '0';
+                });
+            }
+        }
+
+        // --- حسابات الابتعاث ---
+        function calculateScholarshipDues(basicSalary, duration, arkab, remoteInput) {
+            const entitlement = Number(((basicSalary * 0.75 / 30) * duration).toFixed(2));
+            const totalEntitlement = Number((entitlement + arkab).toFixed(2));
+            const foodDeduction = Number(((500 / 30) * duration).toFixed(2));
+            const fieldDeduction = Number(((450 / 30) * duration).toFixed(2));
+
+            // تعديل معادلة حسم مناطق نائية: (القيمة المدخلة / 30) × المدة
+            const remoteDeduction = Number(((Number(remoteInput) / 30) * duration).toFixed(2));
+
+            // الحسميات الإجمالية
+            const totalDeductions = Number((foodDeduction + fieldDeduction + remoteDeduction).toFixed(2));
+            const net = Number((totalEntitlement - totalDeductions).toFixed(2));
+
+            return { entitlement, totalEntitlement, foodDeduction, fieldDeduction, remoteDeduction, totalDeductions, net };
+        }
+
+        function liveCalculateSch() {
+            const basic = parseFloat(document.getElementById('sch-basic-salary').value) || 0;
+            const inputDuration = parseFloat(document.getElementById('sch-duration').value) || 0;
+            const arkab = parseFloat(document.getElementById('sch-arkab').value) || 0;
+            const remote = parseFloat(document.getElementById('sch-remote-deduction').value) || 0;
+
+            // حساب المدة المعتمدة بزيادة 7 أيام
+            const finalDuration = inputDuration > 0 ? inputDuration + 7 : 0;
+
+            // تحديث رسالة الـ UX للمستخدم
+            const durationNote = document.getElementById('sch-duration-note');
+            if (durationNote) {
+                if (inputDuration > 0) {
+                    durationNote.innerHTML = `<span style="color: var(--secondary); font-weight: 700;">المدة المعتمدة: ${finalDuration} أيام</span> (شاملة 7 أيام مسافة سفر)`;
+                } else {
+                    durationNote.innerHTML = `(سيتم إضافة 7 أيام تلقائياً مسافة سفر)`;
+                }
+            }
+
+            if (basic >= 0 && finalDuration >= 0) {
+                const result = calculateScholarshipDues(basic, finalDuration, arkab, remote);
+                document.getElementById('sch-live-entitlement').textContent = result.entitlement;
+                document.getElementById('sch-live-total').textContent = result.totalEntitlement;
+                document.getElementById('sch-live-food-deduction').textContent = result.foodDeduction;
+                document.getElementById('sch-live-field-deduction').textContent = result.fieldDeduction;
+
+                const remoteEl = document.getElementById('sch-live-remote-deduction');
+                if (remoteEl) remoteEl.textContent = result.remoteDeduction;
+
+                document.getElementById('sch-live-total-deductions').textContent = result.totalDeductions;
+                document.getElementById('sch-live-net').textContent = result.net;
+            } else {
+                ['sch-live-entitlement', 'sch-live-total', 'sch-live-food-deduction', 'sch-live-field-deduction', 'sch-live-remote-deduction', 'sch-live-total-deductions', 'sch-live-net'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '0';
+                });
+            }
+        }
+
+        // ==========================================
+        // 8. الإكمال التلقائي المشترك (Autocomplete)
+        // ==========================================
+        function searchPersonnel(formContext = 'entitlement') {
+            let inputId, resultsId;
+
+            // تحديد الـ IDs بناءً على سياق الشاشة لتجنب التكرار
+            if (formContext === 'entitlement') {
+                inputId = 'personnelSearch';
+                resultsId = 'searchResults';
+            } else if (formContext === 'scholarship') {
+                inputId = 'schPersonnelSearch';
+                resultsId = 'schSearchResults';
+            } else if (formContext === 'database') {
+                inputId = 'dbPersonnelSearch';
+                resultsId = 'dbSearchResults';
+            }
+
+            const searchInput = document.getElementById(inputId);
+            const rawQuery = searchInput.value.trim().toLowerCase();
+            const query = convertArabicToEnglishNumbers(rawQuery);
+            const resultsContainer = document.getElementById(resultsId);
+
+            if (query.length < 2) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+
+            const matches = personnelDB.filter(p =>
+                p.name.toLowerCase().includes(query) ||
+                p.identity.includes(query)
+            ).slice(0, 8);
+
+            if (matches.length > 0) {
+                resultsContainer.innerHTML = matches.map(p => {
+                    // تحديد الإجراء المناسب عند النقر بناءً على الشاشة
+                    let action = '';
+                    if (formContext === 'database') {
+                        // في قاعدة الموظفين: فتح نافذة التعديل وإخفاء القائمة
+                        action = `openEditModal('${p.identity}'); document.getElementById('${resultsId}').style.display='none'; document.getElementById('${inputId}').value='';`;
+                    } else {
+                        // في نماذج الإدخال: تعبئة الحقول
+                        action = `selectPersonnel('${p.name}', '${p.identity}', '${p.rank}', '${formContext}')`;
+                    }
+
+                    return `
+                    <div class="search-item" onclick="${action}">
+                        <strong>${p.name}</strong> - ${p.identity} 
+                        <span style="color: #64748b; font-size: 0.85em; margin-right: 10px;">(${p.rank || 'غير محدد'})</span>
+                    </div>
+                    `;
+                }).join('');
+                resultsContainer.style.display = 'block';
+            } else {
+                resultsContainer.innerHTML = '<div style="padding: 1rem; color: #94a3b8; text-align: center;">لا توجد نتائج مطابقة</div>';
+                resultsContainer.style.display = 'block';
+            }
+        }
+
+        function selectPersonnel(name, identity, rank, formContext) {
+            const prefix = formContext === 'entitlement' ? '' : 'sch-';
+            const searchInputId = formContext === 'entitlement' ? 'personnelSearch' : 'schPersonnelSearch';
+            const resultsId = formContext === 'entitlement' ? 'searchResults' : 'schSearchResults';
+
+            document.getElementById(prefix + 'name').value = name;
+            document.getElementById(prefix + 'identity').value = identity;
+
+            const rankSelect = document.getElementById(prefix + 'rank');
+            let rankFound = false;
+            const cleanRank = rank ? rank.trim() : '';
+
+            for (let i = 0; i < rankSelect.options.length; i++) {
+                if (rankSelect.options[i].value === cleanRank) {
+                    rankSelect.selectedIndex = i;
+                    rankFound = true; break;
+                }
+            }
+            if (!rankFound) rankSelect.selectedIndex = 0;
+
+            document.getElementById(resultsId).style.display = 'none';
+            document.getElementById(searchInputId).value = '';
+
+            if (formContext === 'entitlement') liveCalculate();
+            else liveCalculateSch();
+
+            showToast('تم تعبئة البيانات بنجاح', 'info');
+        }
+
+        // إغلاق أي قائمة منسدلة عند النقر خارجها
+        document.addEventListener('click', function (e) {
+            const isSearchInput = e.target.id === 'personnelSearch' || e.target.id === 'schPersonnelSearch' || e.target.id === 'dbPersonnelSearch';
+
+            if (!isSearchInput) {
+                const r1 = document.getElementById('searchResults');
+                const r2 = document.getElementById('schSearchResults');
+                const r3 = document.getElementById('dbSearchResults');
+                if (r1) r1.style.display = 'none';
+                if (r2) r2.style.display = 'none';
+                if (r3) r3.style.display = 'none';
+            }
+        });
+
+        // ==========================================
+        // 9. إدارة حفظ السجلات (Shared Logic)
+        // ==========================================
+        function syncPersonnelDB(name, identity, rank) {
+            if (!name || !identity) return;
+            const cleanName = name.trim();
+            const cleanIdentity = convertArabicToEnglishNumbers(identity).replace(/\D/g, '').trim();
+            const cleanRank = rank.trim();
+
+            if (!Array.isArray(personnelDB)) personnelDB = [];
+            const existingIndex = personnelDB.findIndex(p => String(p.identity) === String(cleanIdentity));
+
+            if (existingIndex === -1) {
+                personnelDB.push({ name: cleanName, identity: cleanIdentity, rank: cleanRank });
+            } else {
+                personnelDB[existingIndex].name = cleanName;
+                personnelDB[existingIndex].rank = cleanRank;
+            }
+            localStorage.setItem('personnelDB', JSON.stringify(personnelDB));
+        }
+
+        // --- الانتداب ---
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const identity = document.getElementById('identity').value;
+            const rank = document.getElementById('rank').value;
+            const duration = parseFloat(document.getElementById('duration').value);
+            const arkab = parseFloat(document.getElementById('arkab').value) || 0;
+            const info = document.getElementById('info').value.trim();
+
+            const calc = calculateDues(rank, duration, arkab);
+            const newRecord = { id: Date.now(), name, identity, rank, duration, arkab, info, ...calc };
+
+            records.push(newRecord);
+            localStorage.setItem('entitlementRecords', JSON.stringify(records));
+            syncPersonnelDB(name, identity, rank);
+
+            e.target.reset();
+            liveCalculate();
+            showToast('تم حفظ الانتداب وتحديث بيانات الموظف بنجاح!', 'success');
+        }
+
+        // --- الابتعاث ---
+        function handleSchFormSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('sch-name').value;
+            const identity = document.getElementById('sch-identity').value;
+            const rank = document.getElementById('sch-rank').value;
+            const basic = parseFloat(document.getElementById('sch-basic-salary').value);
+
+            const inputDuration = parseFloat(document.getElementById('sch-duration').value);
+            const finalDuration = inputDuration > 0 ? inputDuration + 7 : 0;
+
+            const arkab = parseFloat(document.getElementById('sch-arkab').value) || 0;
+            const remote = parseFloat(document.getElementById('sch-remote-deduction').value) || 0;
+            const info = document.getElementById('sch-info').value.trim();
+
+            const calc = calculateScholarshipDues(basic, finalDuration, arkab, remote);
+
+            // حفظ finalDuration كـ duration في السجل لتتوافق مع الجداول والطباعة مباشرة
+            const newRecord = { id: Date.now(), name, identity, rank, basicSalary: basic, duration: finalDuration, arkab, info, ...calc };
+
+            scholarshipRecords.push(newRecord);
+            localStorage.setItem('scholarshipRecords', JSON.stringify(scholarshipRecords));
+            syncPersonnelDB(name, identity, rank);
+
+            e.target.reset();
+            liveCalculateSch();
+            showToast('تم حفظ الابتعاث بنجاح!', 'success');
+        }
+
+        // ==========================================
+        // 10. عرض الجداول (Tables Rendering)
+        // ==========================================
+
+        // --- الانتداب ---
+        function renderTable(filterText = '') {
+            const tbody = document.getElementById('tableBody');
+            const tfoot = document.getElementById('tableFoot');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            let filteredRecords = records;
+            if (filterText) {
+                filterText = filterText.toLowerCase();
+                const englishFilterText = convertArabicToEnglishNumbers(filterText);
+                filteredRecords = records.filter(r =>
+                    r.name.toLowerCase().includes(filterText) || r.identity.includes(englishFilterText)
+                );
+            }
+
+            const globalInfoEl = document.getElementById('globalInfoSubtitle');
+            if (globalInfoEl) {
+                const firstRecordWithInfo = filteredRecords.find(r => r.info);
+                globalInfoEl.innerText = firstRecordWithInfo ? firstRecordWithInfo.info : '';
+                globalInfoEl.style.display = firstRecordWithInfo ? 'block' : 'none';
+            }
+
+            if (filteredRecords.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 2rem;">لا توجد سجلات انتداب</td></tr>`;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            let sums = { entitlement: 0, arkab: 0, total: 0, deduction: 0, net: 0 };
+            filteredRecords.forEach((record, index) => {
+                sums.entitlement += record.entitlement; sums.arkab += record.arkab; sums.total += record.totalEntitlement;
+                sums.deduction += record.fieldDeduction; sums.net += record.net;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${record.name}</td>
+                        <td>${record.identity}</td>
+                        <td>${record.rank}</td>
+                        <td>${record.daily}</td>
+                        <td>${record.duration}</td>
+                        <td>${record.entitlement}</td>
+                        <td>${record.arkab}</td>
+                        <td>${record.totalEntitlement}</td>
+                        <td>${record.fieldDeduction}</td>
+                        <td style="color: var(--secondary); font-weight: bold;">${record.net}</td>
+                        <td class="no-print actions-cell">
+                            <button class="btn btn-info btn-icon" style="padding: 0.3rem;" onclick="printSingleRecord(${record.id})" title="طباعة تقرير فردي">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            </button>
+                            <button class="btn btn-danger btn-icon" style="padding: 0.3rem;" onclick="deleteRecord(${record.id})" title="حذف السجل">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: left;">الإجمالي الكلي</td>
+                    <td>${Number(sums.entitlement.toFixed(2))}</td>
+                    <td>${Number(sums.arkab.toFixed(2))}</td>
+                    <td>${Number(sums.total.toFixed(2))}</td>
+                    <td>${Number(sums.deduction.toFixed(2))}</td>
+                    <td style="color: var(--secondary); font-weight: bold;">${Number(sums.net.toFixed(2))}</td>
+                    <td class="no-print"></td>
+                </tr>`;
+        }
+
+        // --- الابتعاث ---
+        function renderSchTable(filterText = '') {
+            const tbody = document.getElementById('schTableBody');
+            const tfoot = document.getElementById('schTableFoot');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            let filteredRecords = scholarshipRecords;
+            if (filterText) {
+                filterText = filterText.toLowerCase();
+                const englishFilterText = convertArabicToEnglishNumbers(filterText);
+                filteredRecords = scholarshipRecords.filter(r =>
+                    r.name.toLowerCase().includes(filterText) || r.identity.includes(englishFilterText)
+                );
+            }
+
+            const globalInfoEl = document.getElementById('schGlobalInfoSubtitle');
+            if (globalInfoEl) {
+                const firstRecordWithInfo = filteredRecords.find(r => r.info);
+                globalInfoEl.innerText = firstRecordWithInfo ? firstRecordWithInfo.info : '';
+                globalInfoEl.style.display = firstRecordWithInfo ? 'block' : 'none';
+            }
+
+            if (filteredRecords.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding: 2rem;">لا توجد سجلات ابتعاث</td></tr>`;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            let sums = { ent: 0, arkab: 0, total: 0, food: 0, field: 0, remote: 0, deds: 0, net: 0 };
+            filteredRecords.forEach((record, index) => {
+                sums.ent += record.entitlement; sums.arkab += record.arkab; sums.total += record.totalEntitlement;
+                sums.food += record.foodDeduction; sums.field += record.fieldDeduction; sums.remote += record.remoteDeduction;
+                sums.deds += record.totalDeductions; sums.net += record.net;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${record.name}</td>
+                        <td>${record.identity}</td>
+                        <td>${record.rank}</td>
+                        <td>${record.duration}</td>
+                        <td>${record.entitlement}</td>
+                        <td>${record.arkab}</td>
+                        <td>${record.totalEntitlement}</td>
+                        <td>${record.foodDeduction}</td>
+                        <td>${record.fieldDeduction}</td>
+                        <td>${record.remoteDeduction}</td>
+                        <td style="color: var(--danger);">${record.totalDeductions}</td>
+                        <td style="color: var(--secondary); font-weight: bold;">${record.net}</td>
+                        <td class="no-print actions-cell">
+                            <button class="btn btn-info btn-icon" style="padding: 0.3rem;" onclick="printSingleSchRecord(${record.id})" title="طباعة تقرير فردي">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            </button>
+                            <button class="btn btn-danger btn-icon" style="padding: 0.3rem;" onclick="deleteSchRecord(${record.id})" title="حذف السجل">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: left;">الإجمالي الكلي</td>
+                    <td>${Number(sums.ent.toFixed(2))}</td>
+                    <td>${Number(sums.arkab.toFixed(2))}</td>
+                    <td>${Number(sums.total.toFixed(2))}</td>
+                    <td>${Number(sums.food.toFixed(2))}</td>
+                    <td>${Number(sums.field.toFixed(2))}</td>
+                    <td>${Number(sums.remote.toFixed(2))}</td>
+                    <td style="color: var(--danger);">${Number(sums.deds.toFixed(2))}</td>
+                    <td style="color: var(--secondary); font-weight: bold;">${Number(sums.net.toFixed(2))}</td>
+                    <td class="no-print"></td>
+                </tr>`;
+        }
+
+        // ==========================================
+        // عمليات الحذف للجدولين
+        // ==========================================
+        function deleteRecord(id) {
+            if (confirm('هل أنت متأكد من حذف سجل الانتداب؟')) {
+                records = records.filter(r => r.id !== id);
+                localStorage.setItem('entitlementRecords', JSON.stringify(records));
+                renderTable(); showToast('تم حذف الانتداب', 'success');
+            }
+        }
+        function deleteAllRecords() {
+            if (records.length === 0) return;
+            if (confirm('تأكيد: حذف جميع الانتدابات نهائياً؟')) {
+                records = []; localStorage.setItem('entitlementRecords', JSON.stringify(records));
+                renderTable(); showToast('تم إفراغ سجلات الانتداب', 'error');
+            }
+        }
+        function handleTableSearch() { renderTable(document.getElementById('searchInput').value); }
+
+        function deleteSchRecord(id) {
+            if (confirm('هل أنت متأكد من حذف سجل الابتعاث؟')) {
+                scholarshipRecords = scholarshipRecords.filter(r => r.id !== id);
+                localStorage.setItem('scholarshipRecords', JSON.stringify(scholarshipRecords));
+                renderSchTable(); showToast('تم حذف الابتعاث', 'success');
+            }
+        }
+        function deleteAllSchRecords() {
+            if (scholarshipRecords.length === 0) return;
+            if (confirm('تأكيد: حذف جميع سجلات الابتعاث نهائياً؟')) {
+                scholarshipRecords = []; localStorage.setItem('scholarshipRecords', JSON.stringify(scholarshipRecords));
+                renderSchTable(); showToast('تم إفراغ سجلات الابتعاث', 'error');
+            }
+        }
+        function handleSchTableSearch() { renderSchTable(document.getElementById('schSearchInput').value); }
+
+        // ==========================================
+        // 11. الطباعة الفردية
+        // ==========================================
+
+        // --- الانتداب ---
+        function printSingleRecord(id) {
+            const record = records.find(r => r.id === id);
+            if (!record) return;
+
+            document.getElementById('sp-name').innerText = record.name;
+            document.getElementById('sp-identity').innerText = record.identity;
+            document.getElementById('sp-rank').innerText = record.rank;
+            document.getElementById('sp-duration').innerText = record.duration;
+            document.getElementById('sp-daily').innerText = record.daily + ' ريال';
+            document.getElementById('sp-entitlement').innerText = record.entitlement + ' ريال';
+            document.getElementById('sp-arkab').innerText = record.arkab + ' ريال';
+            document.getElementById('sp-total').innerText = record.totalEntitlement + ' ريال';
+            document.getElementById('sp-deduction').innerText = record.fieldDeduction + ' ريال';
+            document.getElementById('sp-net').innerText = record.net + ' ريال';
+
+            const spInfoEl = document.getElementById('sp-info-subtitle');
+            if (spInfoEl) {
+                spInfoEl.innerText = record.info ? record.info : '';
+                spInfoEl.style.display = record.info ? 'block' : 'none';
+            }
+
+            let dynamicStyle = document.getElementById('dynamic-print-style');
+            if (!dynamicStyle) {
+                dynamicStyle = document.createElement('style');
+                dynamicStyle.id = 'dynamic-print-style';
+                document.head.appendChild(dynamicStyle);
+            }
+            dynamicStyle.innerHTML = '@media print { @page { size: portrait !important; } }';
+
+            document.body.classList.add('printing-single');
+            window.print();
+        }
+
+        // --- الابتعاث ---
+        function printSingleSchRecord(id) {
+            const record = scholarshipRecords.find(r => r.id === id);
+            if (!record) return;
+
+            document.getElementById('sch-sp-name').innerText = record.name;
+            document.getElementById('sch-sp-identity').innerText = record.identity;
+            document.getElementById('sch-sp-rank').innerText = record.rank;
+            document.getElementById('sch-sp-basic').innerText = record.basicSalary + ' ريال';
+            document.getElementById('sch-sp-duration').innerText = record.duration;
+            document.getElementById('sch-sp-entitlement').innerText = record.entitlement + ' ريال';
+            document.getElementById('sch-sp-arkab').innerText = record.arkab + ' ريال';
+            document.getElementById('sch-sp-total').innerText = record.totalEntitlement + ' ريال';
+            document.getElementById('sch-sp-food-ded').innerText = record.foodDeduction + ' ريال';
+            document.getElementById('sch-sp-field-ded').innerText = record.fieldDeduction + ' ريال';
+            document.getElementById('sch-sp-remote-ded').innerText = record.remoteDeduction + ' ريال';
+            document.getElementById('sch-sp-total-ded').innerText = record.totalDeductions + ' ريال';
+            document.getElementById('sch-sp-net').innerText = record.net + ' ريال';
+
+            const spInfoEl = document.getElementById('sch-sp-info-subtitle');
+            if (spInfoEl) {
+                spInfoEl.innerText = record.info ? record.info : '';
+                spInfoEl.style.display = record.info ? 'block' : 'none';
+            }
+
+            let dynamicStyle = document.getElementById('dynamic-print-style');
+            if (!dynamicStyle) {
+                dynamicStyle = document.createElement('style');
+                dynamicStyle.id = 'dynamic-print-style';
+                document.head.appendChild(dynamicStyle);
+            }
+            dynamicStyle.innerHTML = '@media print { @page { size: portrait !important; } }';
+
+            document.body.classList.add('printing-single-sch');
+            window.print();
+        }
+
+        window.addEventListener('afterprint', () => {
+            document.body.classList.remove('printing-single');
+            document.body.classList.remove('printing-single-sch');
+            const dynamicStyle = document.getElementById('dynamic-print-style');
+            if (dynamicStyle) dynamicStyle.remove();
+        });
+
+        // ==========================================
+        // 12. معالجة قاعدة الموظفين وتعديلاتها (CSV)
+        // ==========================================
+        function renderPersonnelTable() {
+            const tbody = document.getElementById('personnelTableBody');
+            if (!tbody) return;
+
+            if (personnelDB.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #64748b;">القاعدة فارغة. قم بإضافة سجلات أو رفع ملف CSV.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = personnelDB.map((p, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${p.name}</td>
+                    <td>${p.identity}</td>
+                    <td>${p.rank || '-'}</td>
+                    <td style="text-align: center;" class="actions-cell">
+                        <button class="btn btn-primary btn-icon" style="padding: 0.3rem;" onclick="openEditModal('${p.identity}')" title="تعديل المسجل">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button class="btn btn-danger btn-icon" style="padding: 0.3rem;" onclick="deletePerson('${p.identity}')" title="حذف المسجل">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openEditModal(identity) {
+            const person = personnelDB.find(p => p.identity === identity);
+            if (!person) return;
+
+            editingIdentity = identity;
+            document.getElementById('editPersonName').value = person.name;
+            document.getElementById('editPersonIdentity').value = person.identity;
+
+            const rankSelect = document.getElementById('editPersonRank');
+            const cleanRank = person.rank ? person.rank.trim() : '';
+            let rankFound = false;
+
+            for (let i = 0; i < rankSelect.options.length; i++) {
+                if (rankSelect.options[i].value === cleanRank) {
+                    rankSelect.selectedIndex = i;
+                    rankFound = true; break;
+                }
+            }
+            if (!rankFound) rankSelect.selectedIndex = 0;
+
+            document.getElementById('editPersonModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editPersonModal').style.display = 'none';
+            editingIdentity = null;
+        }
+
+        function savePersonEdit() {
+            const newName = document.getElementById('editPersonName').value.trim();
+            const newIdentityRaw = document.getElementById('editPersonIdentity').value;
+            const newIdentity = convertArabicToEnglishNumbers(newIdentityRaw).replace(/\D/g, '').trim();
+            const newRank = document.getElementById('editPersonRank').value;
+
+            if (!newName || newIdentity.length < 8 || !newRank) {
+                showToast('يرجى تعبئة جميع الحقول بشكل صحيح', 'error');
+                return;
+            }
+
+            if (newIdentity !== editingIdentity) {
+                const exists = personnelDB.some(p => p.identity === newIdentity);
+                if (exists) {
+                    showToast('خطأ: رقم الهوية الجديد مسجل مسبقاً لموظف آخر', 'error');
+                    return;
+                }
+            }
+
+            const personIndex = personnelDB.findIndex(p => p.identity === editingIdentity);
+            if (personIndex !== -1) {
+                personnelDB[personIndex].name = newName;
+                personnelDB[personIndex].identity = newIdentity;
+                personnelDB[personIndex].rank = newRank;
+
+                localStorage.setItem('personnelDB', JSON.stringify(personnelDB));
+                renderPersonnelTable();
+                closeEditModal();
+                showToast('تم حفظ تعديلات الموظف بنجاح', 'success');
+            }
+        }
+
+        function deletePerson(identity) {
+            if (confirm('حذف هذا الموظف من القاعدة؟ (لن يتأثر سجله المالي إذا كان مسجلاً)')) {
+                personnelDB = personnelDB.filter(p => p.identity !== identity);
+                localStorage.setItem('personnelDB', JSON.stringify(personnelDB));
+                renderPersonnelTable();
+                showToast('تم حذف الموظف من القاعدة', 'success');
+            }
+        }
+
+        function handleCSVUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.readAsText(file, 'windows-1256');
+
+            reader.onload = function (e) {
+                let text = e.target.result;
+                if (text.includes('')) {
+                    const utf8Reader = new FileReader();
+                    utf8Reader.readAsText(file, 'UTF-8');
+                    utf8Reader.onload = function (e2) { processCSVData(e2.target.result); };
+                    return;
+                }
+                processCSVData(text);
+                event.target.value = '';
+            };
+        }
+
+        function processCSVData(text, silent = false) {
+            const rows = text.split('\n');
+            let newPersonnel = [];
+            let headersFound = false;
+            let nameIdx = -1, idIdx = -1, rankIdx = -1;
+
+            for (let i = 0; i < rows.length; i++) {
+                const columns = rows[i].split(/[,;]/).map(c => c.trim().replace(/"/g, ''));
+
+                if (!headersFound) {
+                    nameIdx = columns.findIndex(c => c.includes('الاسم'));
+                    idIdx = columns.findIndex(c => c.includes('الهوية') || c.includes('السجل المدني'));
+                    rankIdx = columns.findIndex(c => c.includes('الرتبة'));
+                    if (nameIdx !== -1 && idIdx !== -1) headersFound = true;
+                    continue;
+                }
+
+                if (columns.length > Math.max(nameIdx, idIdx)) {
+                    const name = columns[nameIdx];
+                    let identity = columns[idIdx];
+                    const rank = rankIdx !== -1 ? columns[rankIdx] : '';
+
+                    if (name && identity) {
+                        identity = convertArabicToEnglishNumbers(identity).replace(/\D/g, '');
+                        if (identity.length >= 8) {
+                            newPersonnel.push({ name: name.trim(), identity: identity, rank: rank.trim() });
+                        }
+                    }
+                }
+            }
+
+            if (newPersonnel.length > 0) {
+                const merged = [...personnelDB, ...newPersonnel];
+                const uniqueMap = new Map(merged.map(item => [item.identity, item]));
+                personnelDB = Array.from(uniqueMap.values());
+
+                localStorage.setItem('personnelDB', JSON.stringify(personnelDB));
+                renderPersonnelTable();
+                if (!silent) showToast(`تم استيراد ${newPersonnel.length} مسجل للقاعدة بنجاح!`, 'success');
+            } else {
+                if (!silent) showToast('خطأ: تأكد أن الملف يحتوي على عناوين "الاسم" و"الهوية".', 'error');
+            }
+        }
+
+        // ==========================================
+        // 13. إشعارات
+        // ==========================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            let icon = type === 'success' ? '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg>'
+                : type === 'error' ? '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>'
+                    : '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>
